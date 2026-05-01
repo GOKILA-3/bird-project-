@@ -20,7 +20,10 @@ st.markdown(
 model = joblib.load("model_compressed.pkl")
 
 class_names = ["crow","sparrow","parrot","pigeon","peacock",
-               "eagle","owl","woodpecker","duck"]
+               "eagle","owl","kingfisher","woodpecker","duck"]
+
+# 🔥 Get expected feature size automatically
+EXPECTED_FEATURES = model.n_features_in_
 
 # ==============================
 # AUDIO FEATURE
@@ -31,26 +34,29 @@ def extract_audio_features(file):
     mfcc = librosa.feature.mfcc(y=signal, sr=sr, n_mfcc=40)
     mfcc = np.mean(mfcc.T, axis=0)
 
-    # match training shape
-    if len(mfcc) < 256:
-        mfcc = np.pad(mfcc, (0, 256 - len(mfcc)))
+    # 🔥 MATCH MODEL SIZE
+    if len(mfcc) < EXPECTED_FEATURES:
+        mfcc = np.pad(mfcc, (0, EXPECTED_FEATURES - len(mfcc)))
     else:
-        mfcc = mfcc[:256]
+        mfcc = mfcc[:EXPECTED_FEATURES]
 
     return mfcc
 
 # ==============================
-# SIMPLE IMAGE FEATURE (COLOR)
+# IMAGE FEATURE (SIMPLE + SAFE)
 # ==============================
 def extract_image_features(img):
     img = img.resize((64, 64))
     arr = np.array(img)
 
-    # simple RGB mean features
+    # simple RGB mean
     features = np.mean(arr, axis=(0,1))  # 3 values
 
-    # expand to match 256 size
-    features = np.pad(features, (0, 256 - len(features)))
+    # 🔥 MATCH MODEL SIZE
+    if len(features) < EXPECTED_FEATURES:
+        features = np.pad(features, (0, EXPECTED_FEATURES - len(features)))
+    else:
+        features = features[:EXPECTED_FEATURES]
 
     return features
 
@@ -92,7 +98,7 @@ if st.button("🔍 Predict", use_container_width=True):
             features_list.append(audio_features)
 
         # ==============================
-        # FINAL FEATURE (SMART FUSION)
+        # SMART FEATURE COMBINE
         # ==============================
         final_features = np.mean(features_list, axis=0)
         final_features = final_features.reshape(1, -1)
@@ -103,6 +109,9 @@ if st.button("🔍 Predict", use_container_width=True):
         probs = model.predict_proba(final_features)[0]
         best_idx = np.argmax(probs)
 
+        # ==============================
+        # OUTPUT
+        # ==============================
         st.markdown("## 🎯 Prediction Result")
 
         st.success(f"**{class_names[best_idx].upper()}**")
