@@ -22,8 +22,14 @@ def download_model():
 
     if not os.path.exists(output):
         st.info("⬇️ Downloading image model from Google Drive...")
-        gdown.download(url, output, quiet=False)
-        st.success("✅ Model downloaded successfully")
+        gdown.download(url, output, quiet=False, fuzzy=True)
+
+    # safety check
+    if not os.path.exists(output):
+        raise Exception("❌ ONNX file not found after download")
+
+    if os.path.getsize(output) < 1_000_000:
+        raise Exception("❌ Corrupted ONNX file (too small)")
 
 download_model()
 
@@ -34,9 +40,16 @@ audio_model = joblib.load("bird_model.pkl")
 le = joblib.load("label_encoder.pkl")
 
 # ===============================
-# LOAD ONNX IMAGE MODEL
+# LOAD ONNX IMAGE MODEL (SAFE)
 # ===============================
-session = ort.InferenceSession("bird_image_model.onnx")
+def load_onnx():
+    model_path = "bird_image_model.onnx"
+
+    session = ort.InferenceSession(model_path)
+
+    return session
+
+session = load_onnx()
 
 input_name = session.get_inputs()[0].name
 output_name = session.get_outputs()[0].name
@@ -68,7 +81,7 @@ def predict_audio(file):
 
     top3 = probs.argsort()[-3:][::-1]
 
-    return [(le.inverse_transform([i])[0], probs[i]) for i in top3]
+    return [(le.inverse_transform([i])[0], float(probs[i])) for i in top3]
 
 # ===============================
 # IMAGE PREPROCESS (ONNX)
@@ -109,7 +122,7 @@ mode = st.sidebar.radio("Select Mode", ["Home", "Audio", "Image"])
 # ===============================
 if mode == "Home":
     st.title("🐦 Bird Species Prediction System")
-    st.write("Audio + Image AI Model (Google Drive ONNX integrated)")
+    st.write("Audio + Image AI Model (Fully Fixed + Cloud Ready)")
 
 # ===============================
 # AUDIO
@@ -124,7 +137,7 @@ elif mode == "Audio":
 
         for label, conf in results:
             st.write(f"**{label}**")
-            st.progress(float(conf))
+            st.progress(conf)
             st.write(f"{conf*100:.2f}%")
 
 # ===============================
@@ -144,5 +157,5 @@ elif mode == "Image":
 
             for label, conf in results:
                 st.write(f"**{label}**")
-                st.progress(float(conf))
+                st.progress(conf)
                 st.write(f"{conf*100:.2f}%")
