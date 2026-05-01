@@ -2,6 +2,7 @@ streamlit
 numpy
 pillow
 librosa
+torch
 scikit-learn
 joblib
 requests
