@@ -2,38 +2,22 @@ import streamlit as st
 import numpy as np
 import librosa
 import joblib
-import onnxruntime as ort
-from PIL import Image
-import os
 
 # ===============================
 # PAGE CONFIG
 # ===============================
-st.set_page_config(page_title="🐦 Bird AI System", layout="wide")
+st.set_page_config(page_title="🐦 Bird Audio AI", layout="wide")
 
 # ===============================
-# LOAD AUDIO MODEL
+# LOAD MODEL
 # ===============================
 audio_model = joblib.load("bird_model.pkl")
 le = joblib.load("label_encoder.pkl")
 
 # ===============================
-# LOAD ONNX IMAGE MODEL
+# FEATURE EXTRACTION
 # ===============================
-MODEL_PATH = "bird_image_model.onnx"
-
-if not os.path.exists(MODEL_PATH):
-    st.error("❌ ONNX model not found. Upload bird_image_model.onnx to repo.")
-    st.stop()
-
-session = ort.InferenceSession(MODEL_PATH)
-input_name = session.get_inputs()[0].name
-output_name = session.get_outputs()[0].name
-
-# ===============================
-# AUDIO FEATURE EXTRACTION
-# ===============================
-def extract_audio_features(file):
+def extract_features(file):
     y, sr = librosa.load(file, sr=22050)
     y = librosa.util.normalize(y)
     y, _ = librosa.effects.trim(y)
@@ -49,10 +33,10 @@ def extract_audio_features(file):
     ])
 
 # ===============================
-# AUDIO PREDICTION
+# PREDICTION
 # ===============================
 def predict_audio(file):
-    features = extract_audio_features(file)
+    features = extract_features(file)
     probs = audio_model.predict_proba([features])[0]
 
     top3 = probs.argsort()[-3:][::-1]
@@ -60,78 +44,16 @@ def predict_audio(file):
     return [(le.inverse_transform([i])[0], float(probs[i])) for i in top3]
 
 # ===============================
-# IMAGE PREPROCESS
-# ===============================
-def preprocess(img):
-    img = img.resize((224, 224))
-    img = np.array(img).astype(np.float32) / 255.0
-
-    if img.shape[-1] == 1:
-        img = np.repeat(img, 3, axis=-1)
-
-    img = np.transpose(img, (2, 0, 1))
-    img = np.expand_dims(img, axis=0)
-
-    return img
-
-# ===============================
-# IMAGE PREDICTION (ONNX)
-# ===============================
-def predict_image(img):
-    input_data = preprocess(img)
-
-    outputs = session.run([output_name], {input_name: input_data})
-    probs = outputs[0][0]
-
-    top3 = np.argsort(probs)[-3:][::-1]
-
-    return [(le.inverse_transform([i])[0], float(probs[i])) for i in top3]
-
-# ===============================
 # UI
 # ===============================
-st.sidebar.title("🐦 Bird AI System")
-mode = st.sidebar.radio("Select Mode", ["Home", "Audio", "Image"])
+st.title("🐦 Bird Audio Species Prediction")
 
-# ===============================
-# HOME
-# ===============================
-if mode == "Home":
-    st.title("🐦 Bird Species Prediction System")
-    st.write("Audio + Image AI Model (ONNX Deployment Ready)")
+file = st.file_uploader("Upload bird sound (wav/mp3)", type=["wav", "mp3"])
 
-# ===============================
-# AUDIO
-# ===============================
-elif mode == "Audio":
-    st.title("🎧 Audio Prediction")
+if file and st.button("Predict"):
+    results = predict_audio(file)
 
-    file = st.file_uploader("Upload audio", type=["wav", "mp3"])
-
-    if file and st.button("Predict Audio"):
-        results = predict_audio(file)
-
-        for label, conf in results:
-            st.write(f"**{label}**")
-            st.progress(conf)
-            st.write(f"{conf*100:.2f}%")
-
-# ===============================
-# IMAGE
-# ===============================
-elif mode == "Image":
-    st.title("🖼 Image Prediction")
-
-    file = st.file_uploader("Upload image", type=["jpg", "png", "jpeg"])
-
-    if file:
-        img = Image.open(file).convert("RGB")
-        st.image(img, caption="Uploaded Image", use_container_width=True)
-
-        if st.button("Predict Image"):
-            results = predict_image(img)
-
-            for label, conf in results:
-                st.write(f"**{label}**")
-                st.progress(conf)
-                st.write(f"{conf*100:.2f}%")
+    for label, conf in results:
+        st.write(f"**{label}**")
+        st.progress(conf)
+        st.write(f"{conf*100:.2f}%")
