@@ -1,14 +1,10 @@
 import streamlit as st
-import torch
 import numpy as np
 from PIL import Image
 import librosa
 import librosa.display
 import matplotlib.pyplot as plt
 import joblib
-import torchvision.transforms as transforms
-from torchvision import models
-import torch.nn as nn
 from io import BytesIO
 import requests
 
