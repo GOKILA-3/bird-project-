@@ -5,11 +5,27 @@ import librosa
 import joblib
 import onnxruntime as ort
 from PIL import Image
+import gdown
 
 # ===============================
 # PAGE CONFIG
 # ===============================
-st.set_page_config(page_title="🐦 Bird AI", layout="wide")
+st.set_page_config(page_title="🐦 Bird AI System", layout="wide")
+
+# ===============================
+# DOWNLOAD ONNX FROM GOOGLE DRIVE
+# ===============================
+def download_model():
+    file_id = "19HuHFO-avUg2K9kPL_CEkzPIL7A25rYr"
+    url = f"https://drive.google.com/uc?id={file_id}"
+    output = "bird_image_model.onnx"
+
+    if not os.path.exists(output):
+        st.info("⬇️ Downloading image model from Google Drive...")
+        gdown.download(url, output, quiet=False)
+        st.success("✅ Model downloaded successfully")
+
+download_model()
 
 # ===============================
 # LOAD AUDIO MODEL
@@ -18,11 +34,10 @@ audio_model = joblib.load("bird_model.pkl")
 le = joblib.load("label_encoder.pkl")
 
 # ===============================
-# LOAD IMAGE ONNX MODEL (FIXED)
+# LOAD ONNX IMAGE MODEL
 # ===============================
-IMAGE_MODEL_PATH = "bird_final_25mb.onnx"
+session = ort.InferenceSession("bird_image_model.onnx")
 
-session = ort.InferenceSession(IMAGE_MODEL_PATH)
 input_name = session.get_inputs()[0].name
 output_name = session.get_outputs()[0].name
 
@@ -71,7 +86,7 @@ def preprocess(img):
     return img
 
 # ===============================
-# IMAGE PREDICTION (ONNX)
+# IMAGE PREDICTION
 # ===============================
 def predict_image(img):
     input_data = preprocess(img)
@@ -93,8 +108,8 @@ mode = st.sidebar.radio("Select Mode", ["Home", "Audio", "Image"])
 # HOME
 # ===============================
 if mode == "Home":
-    st.title("🐦 Bird Species Classifier")
-    st.write("Audio + Image AI Model (Optimized Version)")
+    st.title("🐦 Bird Species Prediction System")
+    st.write("Audio + Image AI Model (Google Drive ONNX integrated)")
 
 # ===============================
 # AUDIO
@@ -104,7 +119,7 @@ elif mode == "Audio":
 
     file = st.file_uploader("Upload audio", type=["wav", "mp3"])
 
-    if file and st.button("Predict"):
+    if file and st.button("Predict Audio"):
         results = predict_audio(file)
 
         for label, conf in results:
@@ -122,9 +137,9 @@ elif mode == "Image":
 
     if file:
         img = Image.open(file).convert("RGB")
-        st.image(img, use_container_width=True)
+        st.image(img, caption="Uploaded Image", use_container_width=True)
 
-        if st.button("Predict"):
+        if st.button("Predict Image"):
             results = predict_image(img)
 
             for label, conf in results:
