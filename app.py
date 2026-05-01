@@ -1,37 +1,15 @@
 import streamlit as st
-import os
 import numpy as np
 import librosa
 import joblib
 import onnxruntime as ort
 from PIL import Image
-import gdown
+import os
 
 # ===============================
 # PAGE CONFIG
 # ===============================
 st.set_page_config(page_title="🐦 Bird AI System", layout="wide")
-
-# ===============================
-# DOWNLOAD ONNX FROM GOOGLE DRIVE
-# ===============================
-def download_model():
-    file_id = "19HuHFO-avUg2K9kPL_CEkzPIL7A25rYr"
-    url = f"https://drive.google.com/uc?id={file_id}"
-    output = "bird_image_model.onnx"
-
-    if not os.path.exists(output):
-        st.info("⬇️ Downloading image model from Google Drive...")
-        gdown.download(url, output, quiet=False, fuzzy=True)
-
-    # safety check
-    if not os.path.exists(output):
-        raise Exception("❌ ONNX file not found after download")
-
-    if os.path.getsize(output) < 1_000_000:
-        raise Exception("❌ Corrupted ONNX file (too small)")
-
-download_model()
 
 # ===============================
 # LOAD AUDIO MODEL
@@ -40,17 +18,15 @@ audio_model = joblib.load("bird_model.pkl")
 le = joblib.load("label_encoder.pkl")
 
 # ===============================
-# LOAD ONNX IMAGE MODEL (SAFE)
+# LOAD ONNX IMAGE MODEL
 # ===============================
-def load_onnx():
-    model_path = "bird_image_model.onnx"
+MODEL_PATH = "bird_image_model.onnx"
 
-    session = ort.InferenceSession(model_path)
+if not os.path.exists(MODEL_PATH):
+    st.error("❌ ONNX model not found. Upload bird_image_model.onnx to repo.")
+    st.stop()
 
-    return session
-
-session = load_onnx()
-
+session = ort.InferenceSession(MODEL_PATH)
 input_name = session.get_inputs()[0].name
 output_name = session.get_outputs()[0].name
 
@@ -84,7 +60,7 @@ def predict_audio(file):
     return [(le.inverse_transform([i])[0], float(probs[i])) for i in top3]
 
 # ===============================
-# IMAGE PREPROCESS (ONNX)
+# IMAGE PREPROCESS
 # ===============================
 def preprocess(img):
     img = img.resize((224, 224))
@@ -99,7 +75,7 @@ def preprocess(img):
     return img
 
 # ===============================
-# IMAGE PREDICTION
+# IMAGE PREDICTION (ONNX)
 # ===============================
 def predict_image(img):
     input_data = preprocess(img)
@@ -122,7 +98,7 @@ mode = st.sidebar.radio("Select Mode", ["Home", "Audio", "Image"])
 # ===============================
 if mode == "Home":
     st.title("🐦 Bird Species Prediction System")
-    st.write("Audio + Image AI Model (Fully Fixed + Cloud Ready)")
+    st.write("Audio + Image AI Model (ONNX Deployment Ready)")
 
 # ===============================
 # AUDIO
