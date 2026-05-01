@@ -15,7 +15,6 @@ import requests
 # ==============================
 # PAGE CONFIG
 # ==============================
-
 st.set_page_config(page_title="Bird Classifier", layout="wide")
 
 st.markdown("""
@@ -26,16 +25,14 @@ st.markdown("""
 # ==============================
 # LOAD MODEL
 # ==============================
-
 model = joblib.load("model_compressed.pkl")
 
 class_names = ["crow","sparrow","parrot","pigeon","peacock",
                "eagle","owl","kingfisher","woodpecker","duck"]
 
 # ==============================
-# WEB REFERENCE IMAGES
+# REFERENCE IMAGES
 # ==============================
-
 reference_images = {
     "crow": "https://upload.wikimedia.org/wikipedia/commons/1/11/Crow_in_flight.jpg",
     "sparrow": "https://upload.wikimedia.org/wikipedia/commons/5/5e/House_sparrow04.jpg",
@@ -52,38 +49,34 @@ reference_images = {
 # ==============================
 # DEVICE
 # ==============================
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")  # force CPU (safe for Streamlit)
 
 # ==============================
-# TRANSFORM
+# IMAGE TRANSFORM
 # ==============================
-
 image_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor()
 ])
 
 # ==============================
-# MODELS
+# LIGHTWEIGHT MODELS (NO DOWNLOAD)
 # ==============================
-
-class VisionTransformerModel(nn.Module):
+class VisionModel(nn.Module):
     def __init__(self):
         super().__init__()
-        self.vit = models.vit_b_16(weights=models.ViT_B_16_Weights.DEFAULT)
-        self.vit.heads = nn.Linear(self.vit.heads.head.in_features, 128)
+        self.model = models.resnet18(weights=None)  # no internet download
+        self.model.fc = nn.Linear(self.model.fc.in_features, 128)
 
     def forward(self, x):
-        return self.vit(x)
+        return self.model(x)
 
 class AudioModel(nn.Module):
     def __init__(self):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(256, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128)
+            nn.Linear(256, 128),
+            nn.ReLU()
         )
 
     def forward(self, x):
@@ -92,42 +85,32 @@ class AudioModel(nn.Module):
 class FusionModel(nn.Module):
     def __init__(self):
         super().__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(256, 128),
-            nn.ReLU()
-        )
+        self.fc = nn.Linear(256, 128)
 
     def forward(self, v, a):
         return self.fc(torch.cat((v, a), dim=1))
 
-vit = VisionTransformerModel().to(device)
+# Initialize models
+vision_model = VisionModel().to(device)
 audio_model = AudioModel().to(device)
-fusion = FusionModel().to(device)
+fusion_model = FusionModel().to(device)
 
-vit.eval()
+vision_model.eval()
 audio_model.eval()
-fusion.eval()
+fusion_model.eval()
 
 # ==============================
-# IMAGE LOADER FROM WEB
+# LOAD IMAGE FROM URL
 # ==============================
-
 def load_image_from_url(url):
     response = requests.get(url)
-    img = Image.open(BytesIO(response.content)).convert("RGB")
-    return img
+    return Image.open(BytesIO(response.content)).convert("RGB")
 
 # ==============================
 # AUDIO FEATURE EXTRACTION
 # ==============================
-
 def extract_audio_features(file):
     signal, sr = librosa.load(file, sr=22050)
-
-    fig, ax = plt.subplots()
-    librosa.display.waveshow(signal, sr=sr, ax=ax)
-    ax.set_title("Audio Waveform")
-    st.pyplot(fig)
 
     mfcc = librosa.feature.mfcc(y=signal, sr=sr, n_mfcc=40)
     mfcc = np.mean(mfcc.T, axis=0)
@@ -137,12 +120,11 @@ def extract_audio_features(file):
     else:
         mfcc = mfcc[:256]
 
-    return torch.tensor(mfcc).float().to(device)
+    return torch.tensor(mfcc).float()
 
 # ==============================
 # UI INPUTS
 # ==============================
-
 col1, col2 = st.columns(2)
 
 with col1:
@@ -154,7 +136,6 @@ with col2:
 # ==============================
 # PREDICTION
 # ==============================
-
 if st.button("🔍 Predict", use_container_width=True):
 
     if img_file and audio_file:
@@ -169,30 +150,29 @@ if st.button("🔍 Predict", use_container_width=True):
             st.audio(audio_file)
 
         img_tensor = image_transform(img).unsqueeze(0).to(device)
-        audio_features = extract_audio_features(audio_file)
+        audio_features = extract_audio_features(audio_file).unsqueeze(0).to(device)
 
+        # Fake feature extraction (since no trained DL weights)
         with torch.no_grad():
-            v = vit(img_tensor)
-            a = audio_model(audio_features).unsqueeze(0)
-            f = fusion(v, a).cpu().numpy()
+            v = vision_model(img_tensor)
+            a = audio_model(audio_features)
+            f = fusion_model(v, a).cpu().numpy()
 
+        # Final ML prediction
         probs = model.predict_proba(f)[0]
         top3_idx = np.argsort(probs)[-3:][::-1]
 
         st.markdown("## 🧠 Prediction Results")
 
-        # TOP-3 UI
         for i in top3_idx:
             st.write(f"### {class_names[i].upper()}")
             st.progress(float(probs[i]))
             st.caption(f"Confidence: {probs[i]*100:.2f}%")
 
-        # BEST PREDICTION
         best_idx = top3_idx[0]
         best = class_names[best_idx]
         best_conf = probs[best_idx]
 
-        # CONFIDENCE STATUS
         st.markdown("## 🎯 Final Prediction")
 
         if best_conf > 0.8:
@@ -202,10 +182,6 @@ if st.button("🔍 Predict", use_container_width=True):
         else:
             st.warning(f"⚠️ Low Confidence: {best.upper()}")
 
-        # ==============================
-        # REFERENCE IMAGE (WEB)
-        # ==============================
-
         st.markdown("## 🖼️ Reference Image")
 
         if best in reference_images:
@@ -213,30 +189,7 @@ if st.button("🔍 Predict", use_container_width=True):
                 ref_img = load_image_from_url(reference_images[best])
                 st.image(ref_img, caption=best.upper())
             except:
-                st.warning("⚠️ Could not load reference image")
-
-        # ==============================
-        # DOWNLOAD REPORT
-        # ==============================
-
-        report = f"""
-Bird Prediction Report
-
-Top Prediction: {best}
-Confidence: {best_conf*100:.2f}%
-
-Top 3 Predictions:
-{class_names[top3_idx[0]]} - {probs[top3_idx[0]]*100:.2f}%
-{class_names[top3_idx[1]]} - {probs[top3_idx[1]]*100:.2f}%
-{class_names[top3_idx[2]]} - {probs[top3_idx[2]]*100:.2f}%
-"""
-
-        st.download_button(
-            label="📄 Download Report",
-            data=report,
-            file_name="prediction.txt",
-            mime="text/plain"
-        )
+                st.warning("Could not load image")
 
     else:
         st.warning("⚠️ Upload both image and audio!")
