@@ -6,25 +6,30 @@ import joblib
 from io import BytesIO
 import requests
 
-# PAGE
+# ==============================
+# PAGE CONFIG
+# ==============================
 st.set_page_config(page_title="Bird Classifier", layout="wide")
 
-st.title("🕊️ Bird Species Classifier")
+st.markdown("""
+<h1 style='text-align: center; color: #4CAF50;'>🕊️ Bird Species Classifier</h1>
+<p style='text-align: center;'>Upload Image + Audio → Get Prediction</p>
+""", unsafe_allow_html=True)
 
+# ==============================
 # LOAD MODEL
+# ==============================
 model = joblib.load("model_compressed.pkl")
 
 class_names = ["crow","sparrow","parrot","pigeon","peacock",
                "eagle","owl","kingfisher","woodpecker","duck"]
 
-# IMAGE URL
-def load_image_from_url(url):
-    response = requests.get(url)
-    return Image.open(BytesIO(response.content)).convert("RGB")
-
-# AUDIO FEATURES
+# ==============================
+# AUDIO FEATURE EXTRACTION
+# ==============================
 def extract_audio_features(file):
     signal, sr = librosa.load(file, sr=22050)
+
     mfcc = librosa.feature.mfcc(y=signal, sr=sr, n_mfcc=40)
     mfcc = np.mean(mfcc.T, axis=0)
 
@@ -35,32 +40,84 @@ def extract_audio_features(file):
 
     return mfcc
 
-# UI
-img_file = st.file_uploader("Upload Image", type=["jpg", "png"])
-audio_file = st.file_uploader("Upload Audio", type=["wav", "mp3"])
+# ==============================
+# UI INPUT
+# ==============================
+col1, col2 = st.columns(2)
 
-if st.button("Predict"):
+with col1:
+    img_file = st.file_uploader("📸 Upload Bird Image", type=["jpg", "png"])
+
+with col2:
+    audio_file = st.file_uploader("🎵 Upload Bird Audio", type=["wav", "mp3"])
+
+# ==============================
+# PREDICTION
+# ==============================
+if st.button("🔍 Predict", use_container_width=True):
 
     if img_file and audio_file:
 
-        img = Image.open(img_file)
-        st.image(img)
+        colA, colB = st.columns(2)
 
-        st.audio(audio_file)
+        with colA:
+            img = Image.open(img_file)
+            st.image(img, caption="Uploaded Image", use_container_width=True)
 
+        with colB:
+            st.audio(audio_file)
+
+        # Extract features
         audio_features = extract_audio_features(audio_file)
 
-        # fake image features
+        # Fake image features (since no deep learning model here)
         image_features = np.random.rand(256)
 
         final_features = (image_features + audio_features) / 2
         final_features = final_features.reshape(1, -1)
 
+        # Prediction
         probs = model.predict_proba(final_features)[0]
-        best = np.argmax(probs)
+        top3_idx = np.argsort(probs)[-3:][::-1]
 
-        st.success(f"Prediction: {class_names[best]}")
-        st.write(f"Confidence: {probs[best]*100:.2f}%")
+        # ==============================
+        # RESULTS UI
+        # ==============================
+        st.markdown("## 🧠 Prediction Results")
+
+        for i in top3_idx:
+            st.write(f"### {class_names[i].upper()}")
+            st.progress(float(probs[i]))
+            st.caption(f"Confidence: {probs[i]*100:.2f}%")
+
+        # BEST RESULT
+        best = class_names[top3_idx[0]]
+        best_conf = probs[top3_idx[0]]
+
+        st.markdown("## 🎯 Final Prediction")
+
+        if best_conf > 0.8:
+            st.success(f"🔥 High Confidence: {best.upper()}")
+        elif best_conf > 0.5:
+            st.info(f"⚡ Medium Confidence: {best.upper()}")
+        else:
+            st.warning(f"⚠️ Low Confidence: {best.upper()}")
+
+        # ==============================
+        # DOWNLOAD REPORT
+        # ==============================
+        report = f"""
+Bird Prediction Report
+
+Prediction: {best}
+Confidence: {best_conf*100:.2f}%
+"""
+
+        st.download_button(
+            "📄 Download Report",
+            report,
+            file_name="prediction.txt"
+        )
 
     else:
-        st.warning("Upload both image and audio")
+        st.warning("⚠️ Please upload both image and audio!")
