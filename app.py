@@ -103,21 +103,27 @@ if st.button("🔍 Predict", use_container_width=True):
         final_features = np.mean(features_list, axis=0)
         final_features = final_features.reshape(1, -1)
 
-        # ==============================
-        # PREDICTION
-        # ==============================
-        probs = model.predict_proba(final_features)[0]
+       # ==============================
+# PREDICT (IMAGE PRIORITY)
+# ==============================
+if st.button("🔍 Predict", use_container_width=True):
+
+    if img_file:
+
+        img = Image.open(img_file).convert("RGB")
+        st.image(img, caption="Uploaded Image", width=200)
+
+        # extract image features
+        img_features = extract_image_features(img).reshape(1, -1)
+
+        probs = model.predict_proba(img_features)[0]
         best_idx = np.argmax(probs)
 
-        # ==============================
-        # OUTPUT
-        # ==============================
         st.markdown("## 🎯 Prediction Result")
-
         st.success(f"**{class_names[best_idx].upper()}**")
 
         st.progress(float(probs[best_idx]))
         st.write(f"Confidence: {probs[best_idx]*100:.2f}%")
 
     else:
-        st.warning("⚠️ Upload at least image or audio")
+        st.warning("⚠️ Upload image for prediction")
