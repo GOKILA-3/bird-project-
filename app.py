@@ -1,46 +1,60 @@
 import streamlit as st
+import os
+import zipfile
 import numpy as np
 import librosa
 import joblib
+import torch
+from torchvision import models, transforms
 from PIL import Image
-import os
-
-# ===============================
-# LOAD MODELS
-# ===============================
-audio_model = joblib.load("bird_model.pkl")
-le = joblib.load("label_encoder.pkl")
-
-# If you have image model
-try:
-    from tensorflow.keras.models import load_model
-    image_model = load_model("bird_image_model.h5")
-    IMAGE_MODEL_AVAILABLE = True
-except:
-    IMAGE_MODEL_AVAILABLE = False
 
 # ===============================
 # PAGE CONFIG
 # ===============================
-st.set_page_config(page_title="🐦 Bird Classifier", layout="wide")
+st.set_page_config(page_title="🐦 Bird AI", layout="wide")
 
 # ===============================
-# SIDEBAR
+# LOAD AUDIO MODEL
 # ===============================
-st.sidebar.title("🐦 Bird AI App")
-
-app_mode = st.sidebar.radio(
-    "Select Mode",
-    ["🏠 Home", "🎧 Audio Prediction", "🖼 Image Prediction"]
-)
-
-st.sidebar.markdown("---")
-st.sidebar.info("Final Year Project\nBird Species Detection")
+audio_model = joblib.load("bird_model.pkl")
+le = joblib.load("label_encoder.pkl")
 
 # ===============================
-# FEATURE FUNCTIONS
+# REBUILD IMAGE MODEL FROM PARTS
 # ===============================
+def rebuild_model():
+    if not os.path.exists("bird_image_model.pth"):
 
+        parts = sorted([f for f in os.listdir() if f.startswith("model_part_")])
+
+        if len(parts) > 0:
+            with open("bird_image_model.pth", "wb") as outfile:
+                for part in parts:
+                    with open(part, "rb") as infile:
+                        outfile.write(infile.read())
+
+# run rebuild
+rebuild_model()
+
+# ===============================
+# LOAD IMAGE MODEL
+# ===============================
+num_classes = len(le.classes_)
+
+image_model = models.mobilenet_v2(pretrained=False)
+image_model.classifier[1] = torch.nn.Linear(image_model.last_channel, num_classes)
+
+image_model.load_state_dict(torch.load("bird_image_model.pth", map_location="cpu"))
+image_model.eval()
+
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+])
+
+# ===============================
+# AUDIO FEATURE EXTRACTION
+# ===============================
 def extract_audio_features(file):
     y, sr = librosa.load(file, sr=22050)
     y = librosa.util.normalize(y)
@@ -56,89 +70,77 @@ def extract_audio_features(file):
         np.mean(mel.T, axis=0)
     ])
 
-
+# ===============================
+# AUDIO PREDICTION
+# ===============================
 def predict_audio(file):
     features = extract_audio_features(file)
     probs = audio_model.predict_proba([features])[0]
-    idx = np.argmax(probs)
 
-    return le.inverse_transform([idx])[0], probs[idx]
+    top3 = probs.argsort()[-3:][::-1]
 
+    return [(le.inverse_transform([i])[0], probs[i]) for i in top3]
 
+# ===============================
+# IMAGE PREDICTION
+# ===============================
 def predict_image(img):
-    img = img.resize((224, 224))
-    img = np.array(img) / 255.0
-    img = np.expand_dims(img, axis=0)
+    img = transform(img).unsqueeze(0)
 
-    preds = image_model.predict(img)
-    idx = np.argmax(preds)
+    with torch.no_grad():
+        output = image_model(img)
 
-    return le.inverse_transform([idx])[0], preds[0][idx]
+    probs = torch.nn.functional.softmax(output[0], dim=0)
 
+    top3 = torch.argsort(probs)[-3:].flip(0)
 
-# ===============================
-# HOME PAGE
-# ===============================
-if app_mode == "🏠 Home":
-
-    st.title("🐦 Bird Species Prediction System")
-    st.markdown("### AI-based Audio + Image Classification")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.image("https://cdn-icons-png.flaticon.com/512/616/616490.png", width=200)
-
-    with col2:
-        st.write("""
-        This system can:
-        - 🎧 Detect bird from audio
-        - 🖼 Detect bird from image
-        - ⚡ Fast & simple UI
-        """)
-
-    st.success("✅ Ready to use!")
+    return [(le.inverse_transform([i.item()])[0], probs[i].item()) for i in top3]
 
 # ===============================
-# AUDIO PAGE
+# UI
 # ===============================
-elif app_mode == "🎧 Audio Prediction":
-
-    st.title("🎧 Bird Audio Prediction")
-
-    audio_file = st.file_uploader("Upload Bird Sound", type=["wav", "mp3"])
-
-    if audio_file:
-        st.audio(audio_file)
-
-        if st.button("🔍 Predict Bird"):
-            label, confidence = predict_audio(audio_file)
-
-            st.success(f"🐦 Prediction: {label}")
-            st.progress(float(confidence))
-
-            st.write(f"Confidence: {confidence*100:.2f}%")
+st.sidebar.title("🐦 Bird AI System")
+mode = st.sidebar.radio("Select Mode", ["Home", "Audio", "Image"])
 
 # ===============================
-# IMAGE PAGE
+# HOME
 # ===============================
-elif app_mode == "🖼 Image Prediction":
+if mode == "Home":
+    st.title("🐦 Bird Species Classifier")
+    st.write("Audio + Image AI Model")
 
-    st.title("🖼 Bird Image Prediction")
+# ===============================
+# AUDIO
+# ===============================
+elif mode == "Audio":
+    st.title("🎧 Audio Prediction")
 
-    if not IMAGE_MODEL_AVAILABLE:
-        st.error("⚠️ Image model not found!")
-    else:
-        image_file = st.file_uploader("Upload Bird Image", type=["jpg", "png"])
+    file = st.file_uploader("Upload audio", type=["wav", "mp3"])
 
-        if image_file:
-            img = Image.open(image_file)
-            st.image(img, caption="Uploaded Image", use_column_width=True)
+    if file and st.button("Predict"):
+        results = predict_audio(file)
 
-            if st.button("🔍 Predict Bird"):
-                label, confidence = predict_image(img)
+        for label, conf in results:
+            st.write(f"**{label}**")
+            st.progress(float(conf))
+            st.write(f"{conf*100:.2f}%")
 
-                st.success(f"🐦 Prediction: {label}")
-                st.progress(float(confidence))
+# ===============================
+# IMAGE
+# ===============================
+elif mode == "Image":
+    st.title("🖼 Image Prediction")
 
-                st.write(f"Confidence: {confidence*100:.2f}%")
+    file = st.file_uploader("Upload image", type=["jpg", "png"])
+
+    if file:
+        img = Image.open(file).convert("RGB")
+        st.image(img, use_column_width=True)
+
+        if st.button("Predict"):
+            results = predict_image(img)
+
+            for label, conf in results:
+                st.write(f"**{label}**")
+                st.progress(float(conf))
+                st.write(f"{conf*100:.2f}%")
