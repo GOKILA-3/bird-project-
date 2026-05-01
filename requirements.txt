@@ -1,8 +1,11 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 streamlit
 numpy
-pillow
 librosa
-torch
-scikit-learn
 joblib
-requests
+pillow
+scikit-learn
+
+torch==2.1.2
+torchvision==0.16.2
