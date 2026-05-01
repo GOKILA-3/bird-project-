@@ -27,7 +27,7 @@ st.markdown("""
 # LOAD MODEL
 # ==============================
 
-model = joblib.load("model.pkl")
+model = joblib.load("model_compressed.pkl")
 
 class_names = ["crow","sparrow","parrot","pigeon","peacock",
                "eagle","owl","kingfisher","woodpecker","duck"]
