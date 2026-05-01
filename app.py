@@ -1,11 +1,9 @@
 import streamlit as st
 import os
-import zipfile
 import numpy as np
 import librosa
 import joblib
-import torch
-from torchvision import models, transforms
+import onnxruntime as ort
 from PIL import Image
 
 # ===============================
@@ -20,37 +18,13 @@ audio_model = joblib.load("bird_model.pkl")
 le = joblib.load("label_encoder.pkl")
 
 # ===============================
-# REBUILD IMAGE MODEL FROM PARTS
+# LOAD IMAGE ONNX MODEL (FIXED)
 # ===============================
-def rebuild_model():
-    if not os.path.exists("bird_image_model.pth"):
+IMAGE_MODEL_PATH = "bird_final_25mb.onnx"
 
-        parts = sorted([f for f in os.listdir() if f.startswith("model_part_")])
-
-        if len(parts) > 0:
-            with open("bird_image_model.pth", "wb") as outfile:
-                for part in parts:
-                    with open(part, "rb") as infile:
-                        outfile.write(infile.read())
-
-# run rebuild
-rebuild_model()
-
-# ===============================
-# LOAD IMAGE MODEL
-# ===============================
-num_classes = len(le.classes_)
-
-image_model = models.mobilenet_v2(pretrained=False)
-image_model.classifier[1] = torch.nn.Linear(image_model.last_channel, num_classes)
-
-image_model.load_state_dict(torch.load("bird_image_model.pth", map_location="cpu"))
-image_model.eval()
-
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-])
+session = ort.InferenceSession(IMAGE_MODEL_PATH)
+input_name = session.get_inputs()[0].name
+output_name = session.get_outputs()[0].name
 
 # ===============================
 # AUDIO FEATURE EXTRACTION
@@ -82,19 +56,32 @@ def predict_audio(file):
     return [(le.inverse_transform([i])[0], probs[i]) for i in top3]
 
 # ===============================
-# IMAGE PREDICTION
+# IMAGE PREPROCESS (ONNX)
+# ===============================
+def preprocess(img):
+    img = img.resize((224, 224))
+    img = np.array(img).astype(np.float32) / 255.0
+
+    if img.shape[-1] == 1:
+        img = np.repeat(img, 3, axis=-1)
+
+    img = np.transpose(img, (2, 0, 1))
+    img = np.expand_dims(img, axis=0)
+
+    return img
+
+# ===============================
+# IMAGE PREDICTION (ONNX)
 # ===============================
 def predict_image(img):
-    img = transform(img).unsqueeze(0)
+    input_data = preprocess(img)
 
-    with torch.no_grad():
-        output = image_model(img)
+    outputs = session.run([output_name], {input_name: input_data})
+    probs = outputs[0][0]
 
-    probs = torch.nn.functional.softmax(output[0], dim=0)
+    top3 = np.argsort(probs)[-3:][::-1]
 
-    top3 = torch.argsort(probs)[-3:].flip(0)
-
-    return [(le.inverse_transform([i.item()])[0], probs[i].item()) for i in top3]
+    return [(le.inverse_transform([i])[0], float(probs[i])) for i in top3]
 
 # ===============================
 # UI
@@ -107,7 +94,7 @@ mode = st.sidebar.radio("Select Mode", ["Home", "Audio", "Image"])
 # ===============================
 if mode == "Home":
     st.title("🐦 Bird Species Classifier")
-    st.write("Audio + Image AI Model")
+    st.write("Audio + Image AI Model (Optimized Version)")
 
 # ===============================
 # AUDIO
@@ -131,11 +118,11 @@ elif mode == "Audio":
 elif mode == "Image":
     st.title("🖼 Image Prediction")
 
-    file = st.file_uploader("Upload image", type=["jpg", "png"])
+    file = st.file_uploader("Upload image", type=["jpg", "png", "jpeg"])
 
     if file:
         img = Image.open(file).convert("RGB")
-        st.image(img, use_column_width=True)
+        st.image(img, use_container_width=True)
 
         if st.button("Predict"):
             results = predict_image(img)
