@@ -7,52 +7,79 @@ import joblib
 # PAGE CONFIG
 # ===============================
 st.set_page_config(
-    page_title="🐦 Bird Audio AI",
+    page_title="🐦 Bird AI Vision",
     layout="centered",
     page_icon="🐦"
 )
 
 # ===============================
-# CUSTOM CSS (MAKE IT BEAUTIFUL)
+# BIRD IMAGE MAP (ADD YOUR OWN)
+# ===============================
+bird_images = {
+    "sparrow": "https://upload.wikimedia.org/wikipedia/commons/5/5c/House_Sparrow_mar08.jpg",
+    "crow": "https://upload.wikimedia.org/wikipedia/commons/0/0c/Corvus_brachyrhynchos.jpg",
+    "peacock": "https://upload.wikimedia.org/wikipedia/commons/e/e0/Peacock_Plumage.jpg",
+    "pigeon": "https://upload.wikimedia.org/wikipedia/commons/1/1d/Rock_Pigeon_Columba_livia.jpg",
+}
+
+# ===============================
+# CUSTOM CSS (ANIMATED UI)
 # ===============================
 st.markdown("""
 <style>
+
 body {
-    background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
 }
 
-.main {
-    background-color: #0e1117;
-    padding: 20px;
-    border-radius: 20px;
-    box-shadow: 0px 0px 20px rgba(0,0,0,0.5);
-}
-
+/* Title animation */
 h1 {
     text-align: center;
-    color: #00ffcc;
-    font-size: 40px;
+    color: #00ffd5;
+    animation: fadeIn 2s ease-in-out;
 }
 
+/* Card style */
+.card {
+    background: rgba(0,0,0,0.6);
+    padding: 20px;
+    border-radius: 20px;
+    margin: 15px 0;
+    box-shadow: 0 0 20px rgba(0,255,213,0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Hover animation */
+.card:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 30px rgba(0,255,213,0.5);
+}
+
+/* Image styling */
+img {
+    border-radius: 15px;
+    transition: transform 0.3s ease;
+}
+
+img:hover {
+    transform: scale(1.05);
+}
+
+/* Button */
 .stButton>button {
-    background-color: #00ffcc;
+    background-color: #00ffd5;
     color: black;
-    border-radius: 10px;
     font-size: 18px;
+    border-radius: 12px;
     padding: 10px 20px;
 }
 
-.stProgress > div > div > div {
-    background-color: #00ffcc;
+/* Fade animation */
+@keyframes fadeIn {
+    from {opacity: 0;}
+    to {opacity: 1;}
 }
 
-.card {
-    background: #1a1d25;
-    padding: 15px;
-    border-radius: 15px;
-    margin-bottom: 10px;
-    box-shadow: 0px 0px 10px rgba(0,255,204,0.2);
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -90,36 +117,40 @@ def predict_audio(file):
     return [(le.inverse_transform([i])[0], float(probs[i])) for i in top3]
 
 # ===============================
-# UI HEADER
+# HEADER
 # ===============================
-st.markdown("<h1>🐦 Bird Audio Species AI</h1>", unsafe_allow_html=True)
-st.markdown("### Upload bird sound and discover species instantly 🎧")
+st.markdown("<h1>🐦 Bird Audio Intelligence AI</h1>", unsafe_allow_html=True)
+st.markdown("### Upload bird sound and see species prediction with visuals 🎧✨")
 
 # ===============================
-# FILE UPLOAD
+# UPLOAD
 # ===============================
 file = st.file_uploader("🎵 Upload Bird Audio", type=["wav", "mp3"])
 
 if file:
-    st.audio(file, format='audio/wav')
+    st.audio(file)
 
 # ===============================
-# PREDICTION BUTTON
+# PREDICT
 # ===============================
-if file and st.button("🚀 Predict Species"):
+if file and st.button("🚀 Predict Bird Species"):
 
-    with st.spinner("Analyzing bird sound... 🔍"):
+    with st.spinner("Listening to nature... 🌿"):
         results = predict_audio(file)
 
-    st.success("Prediction Complete! 🎉")
+    st.success("Prediction Completed 🎉")
 
     # ===========================
-    # RESULT CARDS
+    # RESULTS UI
     # ===========================
     for label, conf in results:
+
+        img_url = bird_images.get(label.lower(), "https://upload.wikimedia.org/wikipedia/commons/3/3a/Bird_icon.png")
+
         st.markdown(f"""
         <div class="card">
-            <h3>🐦 {label}</h3>
+            <h2>🐦 {label}</h2>
+            <img src="{img_url}" width="250">
         </div>
         """, unsafe_allow_html=True)
 
