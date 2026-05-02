@@ -19,16 +19,6 @@ audio_model = joblib.load("bird_model.pkl")
 le = joblib.load("label_encoder.pkl")
 
 # ===============================
-# BIRD IMAGES
-# ===============================
-bird_images = {
-    "sparrow": "https://upload.wikimedia.org/wikipedia/commons/5/5c/House_Sparrow_mar08.jpg",
-    "crow": "https://upload.wikimedia.org/wikipedia/commons/0/0c/Corvus_brachyrhynchos.jpg",
-    "pigeon": "https://upload.wikimedia.org/wikipedia/commons/1/1d/Rock_Pigeon_Columba_livia.jpg",
-    "peacock": "https://upload.wikimedia.org/wikipedia/commons/e/e0/Peacock_Plumage.jpg",
-}
-
-# ===============================
 # FEATURE EXTRACTION
 # ===============================
 def extract_features(file):
@@ -53,20 +43,20 @@ def predict_audio(file):
     return [(le.inverse_transform([i])[0], float(probs[i])) for i in top3]
 
 # ===============================
-# CSS (MODERN UI)
+# MODERN CSS (NO IMAGES UI)
 # ===============================
 st.markdown("""
 <style>
 
 /* Background */
 .stApp {
-    background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
+    background: linear-gradient(135deg, #0f172a, #1e293b, #0b1220);
     color: white;
 }
 
 /* Title */
 .main-title {
-    font-size: 45px;
+    font-size: 44px;
     font-weight: 800;
     text-align: center;
     background: linear-gradient(90deg, #7c4dff, #00e5ff);
@@ -75,13 +65,20 @@ st.markdown("""
     margin-bottom: 10px;
 }
 
-/* Glass Card */
+/* Subtitle */
+.subtitle {
+    text-align: center;
+    font-size: 18px;
+    opacity: 0.8;
+}
+
+/* Cards */
 .card {
     background: rgba(255,255,255,0.06);
-    backdrop-filter: blur(10px);
-    border-radius: 18px;
     padding: 20px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    border-radius: 16px;
+    box-shadow: 0 0 15px rgba(124,77,255,0.2);
+    text-align: center;
     transition: 0.3s;
 }
 
@@ -91,21 +88,25 @@ st.markdown("""
 
 /* Result box */
 .result-box {
-    background: rgba(124,77,255,0.15);
+    background: rgba(0, 229, 255, 0.08);
     padding: 25px;
     border-radius: 20px;
     border: 1px solid rgba(255,255,255,0.1);
 }
 
-/* Image styling */
-img {
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
 /* Sidebar */
 section[data-testid="stSidebar"] {
     background: #0b1220;
+}
+
+/* Buttons */
+.stButton>button {
+    background: linear-gradient(90deg, #7c4dff, #00e5ff);
+    color: white;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: bold;
+    border: none;
 }
 
 </style>
@@ -118,15 +119,12 @@ st.sidebar.title("🐦 Bird Vision AI")
 menu = st.sidebar.radio("Navigation", ["🏠 Dashboard", "🎧 Predict"])
 
 # ===============================
-# HEADER BANNER
+# HEADER (NO IMAGE REPLACEMENT)
 # ===============================
 st.markdown("<div class='main-title'>🐦 Bird Vision AI</div>", unsafe_allow_html=True)
-st.markdown("### 🎶 Detect bird species from audio using AI")
+st.markdown("<div class='subtitle'>AI-powered bird species detection from audio</div>", unsafe_allow_html=True)
 
-st.image(
-    "https://upload.wikimedia.org/wikipedia/commons/6/6a/Bird_flying_banner.jpg",
-    use_container_width=True
-)
+st.markdown("---")
 
 # ===============================
 # DASHBOARD
@@ -144,28 +142,26 @@ if menu == "🏠 Dashboard":
     with col3:
         st.markdown("<div class='card'><h3>📊 Predictions</h3><h2>1.2K</h2></div>", unsafe_allow_html=True)
 
-    st.markdown("### 🐦 Popular Birds")
+    st.markdown("---")
+    st.markdown("### 📌 Supported Bird Classes")
 
-    cols = st.columns(4)
-    for i, (bird, img) in enumerate(bird_images.items()):
-        with cols[i % 4]:
-            st.image(img, caption=bird.title(), use_container_width=True)
+    st.info("Sparrow • Crow • Pigeon • Peacock • Eagle • Parrot • Owl • Dove • Woodpecker • Kingfisher")
 
 # ===============================
-# PREDICT PAGE
+# PREDICTION PAGE
 # ===============================
 if menu == "🎧 Predict":
 
-    st.markdown("## 🎧 Upload Bird Audio")
+    st.markdown("## 🎧 Upload Bird Audio File")
 
-    file = st.file_uploader("Upload WAV / MP3", type=["wav", "mp3"])
+    file = st.file_uploader("Upload WAV / MP3 audio", type=["wav", "mp3"])
     predict = st.button("🚀 Predict Bird")
 
     if "result" not in st.session_state:
         st.session_state.result = None
 
     if file and predict:
-        with st.spinner("Analyzing bird sounds... 🧠"):
+        with st.spinner("Analyzing bird sound... 🧠"):
             st.session_state.result = predict_audio(file)
 
     if st.session_state.result:
@@ -186,13 +182,11 @@ if menu == "🎧 Predict":
             """, unsafe_allow_html=True)
 
         with col2:
-            img = bird_images.get(top_label.lower())
-            if img:
-                st.image(img, use_container_width=True)
+            st.success(f"Top Prediction: {top_label.title()}")
 
         st.markdown("## 🔥 Top Predictions")
 
         for label, conf in results:
-            st.write(f"**🐦 {label.title()}**")
+            st.write(f"🐦 **{label.title()}**")
             st.progress(float(conf))
             st.caption(f"{conf*100:.2f}% confidence")
