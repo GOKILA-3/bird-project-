@@ -141,7 +141,7 @@ if menu == "🏠 Dashboard":
             st.markdown("""
             <div class='card'>
                 <h3>🎯 Accuracy</h3>
-                <h2>96.8%</h2>
+                <h2>98.67%</h2>
             </div>
             """, unsafe_allow_html=True)
 
