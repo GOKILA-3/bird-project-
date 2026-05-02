@@ -145,7 +145,7 @@ if menu == "🏠 Dashboard":
     st.markdown("---")
     st.markdown("### 📌 Supported Bird Classes")
 
-    st.info("Sparrow • Crow • Pigeon • Peacock • Eagle • Parrot • Owl • Dove • Woodpecker • Kingfisher")
+    st.info("Sparrow • Crow • Pigeon • Peacock  • Parrot  • Dove")
 
 # ===============================
 # PREDICTION PAGE
