@@ -6,10 +6,10 @@ import joblib
 # ===============================
 # PAGE CONFIG
 # ===============================
-st.set_page_config(page_title="Bird Vision AI", layout="wide")
+st.set_page_config(page_title="🐦 Bird Vision AI", layout="wide")
 
 # ===============================
-# MODEL LOAD
+# LOAD MODEL
 # ===============================
 audio_model = joblib.load("bird_model.pkl")
 le = joblib.load("label_encoder.pkl")
@@ -49,23 +49,16 @@ def predict_audio(file):
     return [(le.inverse_transform([i])[0], float(probs[i])) for i in top3]
 
 # ===============================
-# SIDEBAR (LIKE YOUR IMAGE)
+# SIDEBAR
 # ===============================
 st.sidebar.title("🐦 Bird Vision AI")
-menu = st.sidebar.radio("Navigation", ["Dashboard", "Predict", "Analytics"])
-
-st.sidebar.markdown("---")
-st.sidebar.info("AI Bird Sound Classification System")
+menu = st.sidebar.radio("Navigation", ["Dashboard", "Predict"])
 
 # ===============================
-# DARK THEME UI
+# CSS STYLE
 # ===============================
 st.markdown("""
 <style>
-body {
-    background-color: #0e1117;
-}
-
 .main-title {
     font-size: 40px;
     font-weight: bold;
@@ -76,14 +69,15 @@ body {
     background: #161b22;
     padding: 20px;
     border-radius: 15px;
+    margin-top: 15px;
     box-shadow: 0px 0px 10px rgba(124,77,255,0.2);
-    margin-bottom: 15px;
 }
 
-.big-number {
-    font-size: 28px;
-    font-weight: bold;
-    color: #00ffcc;
+.result-box {
+    background: #0f172a;
+    padding: 20px;
+    border-radius: 15px;
+    margin-top: 20px;
 }
 
 img {
@@ -93,7 +87,7 @@ img {
 """, unsafe_allow_html=True)
 
 # ===============================
-# DASHBOARD PAGE
+# DASHBOARD
 # ===============================
 if menu == "Dashboard":
     st.markdown("<div class='main-title'>🐦 Bird Vision Dashboard</div>", unsafe_allow_html=True)
@@ -101,68 +95,60 @@ if menu == "Dashboard":
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.markdown("<div class='card'><h3>Model Accuracy</h3><div class='big-number'>96.8%</div></div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'><h3>Accuracy</h3><h2>96.8%</h2></div>", unsafe_allow_html=True)
 
     with col2:
-        st.markdown("<div class='card'><h3>Species Supported</h3><div class='big-number'>10+</div></div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'><h3>Species</h3><h2>10+</h2></div>", unsafe_allow_html=True)
 
     with col3:
-        st.markdown("<div class='card'><h3>Predictions Made</h3><div class='big-number'>1.2K</div></div>", unsafe_allow_html=True)
-
-    st.markdown("### 📊 Recent Activity")
-    st.info("Upload audio in Predict section to start predictions.")
+        st.markdown("<div class='card'><h3>Predictions</h3><h2>1.2K</h2></div>", unsafe_allow_html=True)
 
 # ===============================
-# PREDICT PAGE (MAIN UI LIKE IMAGE)
+# PREDICT PAGE
 # ===============================
 if menu == "Predict":
 
     st.markdown("<div class='main-title'>🎧 Bird Audio Prediction</div>", unsafe_allow_html=True)
 
-    col1, col2 = st.columns([1, 1.2])
+    file = st.file_uploader("Upload Bird Audio (wav/mp3)", type=["wav", "mp3"])
 
-    # LEFT SIDE (UPLOAD)
-    with col1:
-        st.markdown("### 📤 Upload Audio")
-        file = st.file_uploader("Upload bird sound", type=["wav", "mp3"])
+    predict = st.button("🚀 Predict")
 
-        if file:
-            st.audio(file)
+    # Store result in session (IMPORTANT FIX)
+    if "result" not in st.session_state:
+        st.session_state.result = None
 
-        predict_btn = st.button("🚀 Predict")
+    if file and predict:
+        st.session_state.result = predict_audio(file)
 
-    # RIGHT SIDE (RESULT PANEL)
-    with col2:
+    # ===============================
+    # ALWAYS SHOW RESULT IF EXISTS
+    # ===============================
+    if st.session_state.result:
+
+        results = st.session_state.result
+        top_label, top_conf = results[0]
+
         st.markdown("### 📊 Prediction Result")
 
-        if file and predict_btn:
+        col1, col2 = st.columns([1, 1])
 
-            results = predict_audio(file)
-
-            top_label, top_conf = results[0]
-            img = bird_images.get(top_label.lower(), "")
-
+        with col1:
             st.markdown(f"""
-            <div class='card'>
+            <div class='result-box'>
                 <h2>🐦 {top_label}</h2>
                 <h3 style='color:#00ffcc'>{top_conf*100:.2f}% Confidence</h3>
             </div>
             """, unsafe_allow_html=True)
 
+        with col2:
+            img = bird_images.get(top_label.lower())
             if img:
                 st.image(img, width=300)
 
-            st.markdown("### 🔥 Top Predictions")
+        st.markdown("### 🔥 Top Predictions")
 
-            for label, conf in results:
-                st.write(f"**{label}**")
-                st.progress(conf)
-                st.write(f"{conf*100:.2f}%")
-
-# ===============================
-# ANALYTICS PAGE
-# ===============================
-if menu == "Analytics":
-    st.markdown("<div class='main-title'>📈 Analytics</div>", unsafe_allow_html=True)
-
-    st.info("Add charts here later (accuracy, dataset distribution, etc.)")
+        for label, conf in results:
+            st.write(f"**{label}**")
+            st.progress(conf)
+            st.write(f"{conf*100:.2f}%")
