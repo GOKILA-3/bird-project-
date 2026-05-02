@@ -121,7 +121,7 @@ menu = st.sidebar.radio("Navigation", ["🏠 Dashboard", "🎧 Predict"])
 # HEADER
 # ===============================
 st.markdown("<div class='main-title'>🐦 Bird Species Recognition AI</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>AI-powered bird sound classification system</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>AI-powered bird Species classification system</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
