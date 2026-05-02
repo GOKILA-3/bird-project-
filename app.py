@@ -43,12 +43,11 @@ def predict_audio(file):
     return [(le.inverse_transform([i])[0], float(probs[i])) for i in top3]
 
 # ===============================
-# MODERN CSS (NO IMAGES UI)
+# MODERN CSS
 # ===============================
 st.markdown("""
 <style>
 
-/* Background */
 .stApp {
     background: linear-gradient(135deg, #0f172a, #1e293b, #0b1220);
     color: white;
@@ -72,10 +71,10 @@ st.markdown("""
     opacity: 0.8;
 }
 
-/* Cards */
+/* Card */
 .card {
     background: rgba(255,255,255,0.06);
-    padding: 20px;
+    padding: 25px;
     border-radius: 16px;
     box-shadow: 0 0 15px rgba(124,77,255,0.2);
     text-align: center;
@@ -99,7 +98,7 @@ section[data-testid="stSidebar"] {
     background: #0b1220;
 }
 
-/* Buttons */
+/* Button */
 .stButton>button {
     background: linear-gradient(90deg, #7c4dff, #00e5ff);
     color: white;
@@ -119,33 +118,45 @@ st.sidebar.title("🐦 Bird Vision AI")
 menu = st.sidebar.radio("Navigation", ["🏠 Dashboard", "🎧 Predict"])
 
 # ===============================
-# HEADER (NO IMAGE REPLACEMENT)
+# HEADER
 # ===============================
-st.markdown("<div class='main-title'>🐦 Automated Bird Species Recognition with Transformer Architectures</div>", unsafe_allow_html=True)
-st.markdown("<div class='subtitle'>AI-powered bird species detection from audio</div>", unsafe_allow_html=True)
+st.markdown("<div class='main-title'>🐦 Bird Species Recognition AI</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>AI-powered bird sound classification system</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
 # ===============================
-# DASHBOARD
+# DASHBOARD (FIXED & CENTERED)
 # ===============================
 if menu == "🏠 Dashboard":
 
-    col1, col2, col3 = st.columns(3)
+    st.markdown("### 📊 Model Overview")
 
-    with col1:
-        st.markdown("<div class='card'><h3>🎯 Accuracy</h3><h2>96.8%</h2></div>", unsafe_allow_html=True)
+    col_left, col_center, col_right = st.columns([1, 2, 1])
 
-    with col2:
-        st.markdown("<div class='card'><h3>🐦 Species</h3><h2>5</h2></div>", unsafe_allow_html=True)
+    with col_center:
+        c1, c2 = st.columns(2)
 
-    with col3:
-        st.markdown("<div class='card'><h3>📊 Predictions</h3><h2>1.2K</h2></div>", unsafe_allow_html=True)
+        with c1:
+            st.markdown("""
+            <div class='card'>
+                <h3>🎯 Accuracy</h3>
+                <h2>96.8%</h2>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with c2:
+            st.markdown("""
+            <div class='card'>
+                <h3>🐦 Species</h3>
+                <h2>5</h2>
+            </div>
+            """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("### 📌 Supported Bird Classes")
 
-    st.info("Sparrow • Crow • Pigeon • Peacock  • Parrot  • Dove")
+    st.markdown("### 📌 Supported Bird Classes")
+    st.info("Sparrow • Crow • Pigeon • Peacock • Parrot • Dove")
 
 # ===============================
 # PREDICTION PAGE
@@ -171,7 +182,7 @@ if menu == "🎧 Predict":
 
         st.markdown("## 📊 Prediction Result")
 
-        col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns(2)
 
         with col1:
             st.markdown(f"""
