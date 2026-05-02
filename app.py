@@ -121,7 +121,7 @@ menu = st.sidebar.radio("Navigation", ["🏠 Dashboard", "🎧 Predict"])
 # ===============================
 # HEADER (NO IMAGE REPLACEMENT)
 # ===============================
-st.markdown("<div class='main-title'>🐦 Bird Vision AI</div>", unsafe_allow_html=True)
+st.markdown("<div class='main-title'>🐦 Automated Bird Species Recognition with Transformer Architectures</div>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>AI-powered bird species detection from audio</div>", unsafe_allow_html=True)
 
 st.markdown("---")
@@ -137,7 +137,7 @@ if menu == "🏠 Dashboard":
         st.markdown("<div class='card'><h3>🎯 Accuracy</h3><h2>96.8%</h2></div>", unsafe_allow_html=True)
 
     with col2:
-        st.markdown("<div class='card'><h3>🐦 Species</h3><h2>10+</h2></div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'><h3>🐦 Species</h3><h2>5</h2></div>", unsafe_allow_html=True)
 
     with col3:
         st.markdown("<div class='card'><h3>📊 Predictions</h3><h2>1.2K</h2></div>", unsafe_allow_html=True)
